@@ -7,4 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SalesAnalysisETL.Application\SalesAnalysisETL.Application.csproj" />
+    <ProjectReference Include="..\SalesAnalysisETL.Persistence\SalesAnalysisETL.Persistence.csproj" />
+  </ItemGroup>
+
 </Project>
