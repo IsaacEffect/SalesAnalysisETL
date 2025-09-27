@@ -10,75 +10,80 @@ namespace SalesAnalysisETL.ConsoleApp
         {
             string connectionString = "Server=DESKTOP-2BRQA3M;Database=AnalisisVentasDB;Trusted_Connection=True;TrustServerCertificate=True;";
 
-            var clienteRepo = new ClienteRepository();
-            var productoRepo = new ProductoRepository();
-            var ventaRepo = new VentaRepository();
-
             // -------------------------
-            // Pipeline Clientes
+            // Customers Pipeline
             // -------------------------
-            var clienteExtractor = new CsvExtractor<Cliente>(cols => new Cliente
+            var customerExtractor = new CsvExtractor<Customer>(cols => new Customer
             {
-                Nombre = cols[0].Trim(),
-                Email = cols[1].Trim(),
-                Region = cols[2].Trim()
+                CustomerID = int.Parse(cols[0]),
+                FirstName = cols[1].Trim(),
+                LastName = cols[2].Trim(),
+                Email = cols[3].Trim(),
+                Phone = cols[4].Trim(),
+                City = cols[5].Trim(),
+                Country = cols[6].Trim()
             });
-
-
-            var clienteTransformador = new DataTransformer<Cliente>();
-            var clienteLoader = new DataLoader<Cliente>(
-                connectionString,
-                (conn, c) => clienteRepo.Insert(conn, c)
+            var customerPipeline = new Pipeline<Customer>(
+                customerExtractor,
+                new CustomerTransformer(),
+                new DataLoader<Customer>(connectionString, (conn, c) => CustomerRepository.Insert(conn, c))
             );
-
-            var clientePipeline = new Pipeline<Cliente>(clienteExtractor, clienteTransformador, clienteLoader);
-            clientePipeline.Ejecutar("clientes.csv");
-
+            customerPipeline.Ejecutar("customers.csv");
 
             // -------------------------
-            // Pipeline Productos
+            // Products Pipeline
             // -------------------------
-            var productoExtractor = new CsvExtractor<Producto>(cols => new Producto
+            var productExtractor = new CsvExtractor<Product>(cols => new Product
             {
-                Nombre = cols[0].Trim(),
-                Categoria = cols[1].Trim(),
-                Precio = decimal.Parse(cols[2])
+                ProductID = int.Parse(cols[0]),
+                ProductName = cols[1].Trim(),
+                Category = cols[2].Trim(),
+                Price = decimal.Parse(cols[3]),
+                Stock = int.Parse(cols[4])
             });
-
-            var productoTransformador = new DataTransformer<Producto>();
-            var productoLoader = new DataLoader<Producto>(
-                connectionString,
-                (conn, p) => productoRepo.Insert(conn, p)
+            var productPipeline = new Pipeline<Product>(
+                productExtractor,
+                new DataTransformer<Product>(),
+                new DataLoader<Product>(connectionString, (conn, p) => ProductRepository.Insert(conn, p))
             );
-
-            var productoPipeline = new Pipeline<Producto>(productoExtractor, productoTransformador, productoLoader);
-            productoPipeline.Ejecutar("productos.csv");
-
+            productPipeline.Ejecutar("products.csv");
 
             // -------------------------
-            // Pipeline Ventas
+            // Orders Pipeline
             // -------------------------
-            var ventaExtractor = new CsvExtractor<Venta>(cols => new Venta
+            var orderExtractor = new CsvExtractor<Order>(cols => new Order
             {
-                IdCliente = int.Parse(cols[0]),
-                IdProducto = int.Parse(cols[1]),
-                Cantidad = int.Parse(cols[2]),
-                Precio = decimal.Parse(cols[3]),
-                Fecha = DateTime.Parse(cols[4]),
-                IdFuente = int.Parse(cols[5])
+                OrderID = int.Parse(cols[0]),
+                CustomerID = int.Parse(cols[1]),
+                OrderDate = DateTime.Parse(cols[2]),
+                Status = cols[3].Trim(),
+                DataSourceID = 1
             });
-
-
-            var ventaTransformador = new VentaTransformer();
-            var ventaLoader = new DataLoader<Venta>(
-                connectionString,
-                (conn, v) => ventaRepo.Insert(conn, v)
+            var orderPipeline = new Pipeline<Order>(
+                orderExtractor,
+                new OrderTransformer(connectionString),
+                new DataLoader<Order>(connectionString, (conn, o) => OrderRepository.Insert(conn, o))
             );
+            orderPipeline.Ejecutar("orders.csv");
 
-            var ventaPipeline = new Pipeline<Venta>(ventaExtractor, ventaTransformador, ventaLoader);
-            ventaPipeline.Ejecutar("ventas.csv");
+            // -------------------------
+            // OrderDetails Pipeline
+            // -------------------------
+            var orderDetailExtractor = new CsvExtractor<OrderDetail>(cols => new OrderDetail
+            {
+                OrderID = int.Parse(cols[0]),
+                ProductID = int.Parse(cols[1]),
+                Quantity = int.Parse(cols[2]),
+                Price = decimal.Parse(cols[3])
+            });
+            var orderDetailPipeline = new Pipeline<OrderDetail>(
+                orderDetailExtractor,
+                new OrderDetailTransformer(connectionString),
+                new DataLoader<OrderDetail>(connectionString, (conn, od) => OrderDetailRepository.Insert(conn, od))
+            );
+            orderDetailPipeline.Ejecutar("order_details.csv");
 
-            Console.WriteLine("ETL completado con éxito.");
+            Console.WriteLine("ETL completado satisfactoriamente.");
         }
     }
 }
