@@ -1,4 +1,5 @@
-﻿using SalesAnalysisETL.Application.Services;
+﻿using Microsoft.Data.SqlClient;
+using SalesAnalysisETL.Application.Services;
 using SalesAnalysisETL.Domain.Entities;
 using SalesAnalysisETL.Persistence.Repositories;
 
@@ -9,6 +10,24 @@ namespace SalesAnalysisETL.ConsoleApp
         static void Main()
         {
             string connectionString = "Server=DESKTOP-2BRQA3M;Database=AnalisisVentasDB;Trusted_Connection=True;TrustServerCertificate=True;";
+
+            // -------------------------
+            // DataSources Pipeline
+            // -------------------------
+            var dataSourceExtractor = new CsvExtractor<DataSource>(cols => new DataSource
+            {
+                SourceType = cols[1].Trim(),           
+                LoadDate = DateTime.Parse(cols[2])
+            });
+
+            var dataSourcePipeline = new Pipeline<DataSource>(
+                dataSourceExtractor,
+                new DataTransformer<DataSource>(),
+                new DataLoader<DataSource>(connectionString, (conn, ds) => DataSourceRepository.Insert(conn, ds))
+            );
+
+            dataSourcePipeline.Ejecutar("datasources.csv");
+
 
             // -------------------------
             // Customers Pipeline
@@ -51,14 +70,25 @@ namespace SalesAnalysisETL.ConsoleApp
             // -------------------------
             // Orders Pipeline
             // -------------------------
+            
+            int defaultDataSourceId;
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using var cmd = new SqlCommand("SELECT TOP 1 DataSourceID FROM DataSources", conn);
+                defaultDataSourceId = (int)cmd.ExecuteScalar();
+            }
+
+            
             var orderExtractor = new CsvExtractor<Order>(cols => new Order
             {
                 OrderID = int.Parse(cols[0]),
                 CustomerID = int.Parse(cols[1]),
                 OrderDate = DateTime.Parse(cols[2]),
                 Status = cols[3].Trim(),
-                DataSourceID = 1
+                DataSourceID = defaultDataSourceId
             });
+
             var orderPipeline = new Pipeline<Order>(
                 orderExtractor,
                 new OrderTransformer(connectionString),

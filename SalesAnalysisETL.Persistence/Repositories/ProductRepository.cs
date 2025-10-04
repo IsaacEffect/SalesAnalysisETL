@@ -7,14 +7,15 @@ namespace SalesAnalysisETL.Persistence.Repositories
     {
         public static void Insert(SqlConnection connection, Product p)
         {
-            var query = @"INSERT INTO Products (ProductID, ProductName, Category, Price, Stock)
-                          VALUES (@ProductID, @ProductName, @Category, @Price, @Stock)";
-            using var cmd = new SqlCommand(query, connection);
+            using var cmd = new SqlCommand("InsertProductCompat", connection);
+            cmd.CommandType = System.Data.CommandType.StoredProcedure;
+
             cmd.Parameters.AddWithValue("@ProductID", p.ProductID);
             cmd.Parameters.AddWithValue("@ProductName", p.ProductName);
-            cmd.Parameters.AddWithValue("@Category", p.Category ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@Category", string.IsNullOrEmpty(p.Category) ? (object)DBNull.Value : p.Category);
             cmd.Parameters.AddWithValue("@Price", p.Price);
             cmd.Parameters.AddWithValue("@Stock", p.Stock);
+
             cmd.ExecuteNonQuery();
         }
     }
